@@ -71,22 +71,23 @@ opencode-reflector 是一个为 AI 编程智能体（opencode / openclaw / claud
 
 ```sh
 # 克隆仓库
-git clone https://github.com/user/opencode-reflector.git
+git clone https://github.com/Akers/opencode-reflector.git
 cd opencode-reflector
 
-# 编译 Go 二进制
+# 编译 Go 二进制 → 输出到 .reflector/bin/reflector
 ./scripts/build.sh
 ```
 
 #### 2. 安装 opencode Adapter
 
 ```sh
+# 将 Adapter 编译并注册到 opencode 插件目录
 ./scripts/install.sh
 ```
 
 #### 3. 配置
 
-编辑项目根目录下的 `.reflector/reflector.yaml`：
+编辑项目根目录下的 `.reflector/reflector.yaml`（首次构建后自动生成）：
 
 ```yaml
 # 情感分析模式: agent=SDK调用LLM | builtin=规则引擎 | off=关闭
@@ -99,6 +100,20 @@ trigger:
   time:
     enabled: true
     schedule: "00:00"
+```
+
+#### 4. 启动
+
+**无需手动启动 Core Engine。** 当 opencode 启动时，Reflector Plugin 会自动：
+
+1. 检测 `.reflector/bin/reflector` 二进制是否存在
+2. 探测端口是否已有实例运行（支持跨 opencode 会话复用）
+3. 自动启动 Core Engine 进程（最多 3 次重试，指数退避）
+4. 如果二进制缺失或启动失败，优雅降级为不分析模式
+
+```sh
+# 正常启动 opencode 即可，Plugin 自动拉起 Core Engine
+opencode
 ```
 
 <p align="right">(<a href="#readme-top">back to">back to top</a>)</p>
