@@ -5,7 +5,7 @@
 .octto/
 
 # Go build output
-reflector
+/reflector
 *.exe
 
 # Node.js
