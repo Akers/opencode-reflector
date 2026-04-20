@@ -1,0 +1,45 @@
+# opencode-reflector 配置文件
+
+# 触发配置
+trigger:
+  # 定时触发
+  time:
+    enabled: true
+    schedule: "00:00"    # 24小时制
+
+  # 事件触发
+  events:
+    enabled: true
+    types:
+      - TASK_FINISHED
+      - N_MESSAGES
+    messageInterval: 10  # N轮对话触发
+
+# Core Engine 端口
+port: 19870
+
+# 模型配置
+model:
+  override: ""  # 强制覆盖宿主默认模型，为空则自动从 SDK 获取
+
+# 情感分析配置
+sentiment:
+  enabled: true                    # 是否启用情感分析
+  skipOnMessageTrigger: true       # N轮对话触发时跳过情感分析（节省 Token）
+  mode: "agent"                    # agent=SDK Prompt(推荐) | builtin=规则引擎 | off=关闭
+
+# 任务分类配置 (L2 层)
+classification:
+  enabled: true                    # 是否启用 LLM 意图分类
+  confidenceThreshold: 0.7         # L2 置信度阈值
+
+# 数据保留
+retention:
+  days: 90                         # 数据保留天数
+
+# 日报配置
+report:
+  template: "default"              # 日报模板名称
+
+# 日志级别
+logLevel: "info"                   # debug/info/warn/error

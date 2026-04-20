@@ -1,0 +1,28 @@
+# opencode-reflector data
+.reflector/
+
+# Session metadata
+.octto/
+
+# Go build output
+reflector
+*.exe
+
+# Node.js
+node_modules/
+dist/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Test artifacts
+*.test
+*.out
+coverage.txt

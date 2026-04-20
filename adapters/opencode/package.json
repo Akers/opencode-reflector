@@ -1,0 +1,31 @@
+{
+  "name": "@akers/opencode-reflector-adapter",
+  "version": "0.1.0",
+  "description": "opencode adapter for opencode-reflector",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./tui": {
+      "import": "./dist/tui.js",
+      "types": "./dist/tui.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "@opencode-ai/plugin": "^1.14.18",
+    "@opencode-ai/sdk": "^1.14.18",
+    "yaml": "^2.4.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "@types/node": "^22.0.0"
+  }
+}
