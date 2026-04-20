@@ -12,6 +12,20 @@
 
 ---
 
+## Table of Contents
+
+- [About The Project](#about-the-project)
+- [Getting Started](#getting-started)
+- [Usage](#usage)
+- [Configuration Reference](#configuration-reference)
+- [Command Reference](#command-reference)
+- [Architecture](#architecture)
+- [Roadmap](#roadmap)
+- [Documentation](#documentation)
+- [License](#license)
+
+---
+
 ## About The Project
 
 opencode-reflector 是一个为 AI 编程智能体（opencode / openclaw / claudecode）设计的反思监控插件。它自动追踪每次会话中的关键指标，生成结构化日报，帮助开发者：
@@ -123,6 +137,141 @@ trigger:
 ├── hooks/                # 自定义 Hook 脚本
 └── bin/
     └── reflector         # Go 二进制
+```
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+---
+
+## Configuration Reference
+
+配置文件位于 `.reflector/reflector.yaml`，所有字段均有默认值，缺失字段自动回退。
+
+### 完整配置示例
+
+```yaml
+# ── 触发方式 ──────────────────────────────────────
+trigger:
+  time:
+    enabled: true           # 是否启用定时触发
+    schedule: "00:00"       # 24小时制，如 "08:30"、"23:00"
+  events:
+    enabled: true           # 是否启用事件触发
+    types:                  # 监听的事件类型
+      - TASK_FINISHED       #   检测到任务完成时触发
+      - N_MESSAGES          #   每N轮对话触发
+    messageInterval: 10     # N_MESSAGES 的 N 值
+
+# ── Core Engine ───────────────────────────────────
+port: 19870                  # Core Engine HTTP 监听端口
+
+# ── 模型配置 ──────────────────────────────────────
+model:
+  override: ""               # 强制覆盖模型，格式 "provider/model"
+                             # 留空则自动获取宿主工具默认模型
+                             # 示例: "anthropic/claude-sonnet-4"
+
+# ── 情感分析 ──────────────────────────────────────
+sentiment:
+  enabled: true              # 是否启用情感分析
+  skipOnMessageTrigger: true # 事件触发时跳过（节省 Token）
+  mode: "agent"              # agent  - 通过宿主 SDK 调用 LLM（推荐）
+                             # builtin - 基于关键词的规则引擎（离线）
+                             # off     - 完全关闭
+
+# ── 任务分类 (L2) ─────────────────────────────────
+classification:
+  enabled: true              # 是否启用 LLM 意图分类
+  confidenceThreshold: 0.7   # 置信度阈值 (0.0~1.0)
+
+# ── 数据管理 ──────────────────────────────────────
+retention:
+  days: 90                   # 数据保留天数，超过自动清理
+report:
+  template: "default"        # 日报模板（目前仅 default）
+logLevel: "info"             # debug | info | warn | error
+```
+
+### 情感分析模式说明
+
+| 模式 | 说明 | Token 消耗 | 准确度 |
+|------|------|-----------|--------|
+| `agent` | 创建临时影子 Session，通过 SDK 调用宿主 LLM | 有（使用宿主默认模型） | 高 |
+| `builtin` | 中英文关键词统计（正面/负面计数→比率/分数） | 无 | 中 |
+| `off` | 不执行情感分析，所有指标标记为 N/A (-1) | 无 | — |
+
+`agent` 模式降级链：SDK Prompt → 规则引擎 → N/A
+
+### Hook 扩展
+
+在 `.reflector/hooks/` 目录下放置可执行脚本，文件名格式为 `{hookPoint}.{ext}`：
+
+```
+.reflector/hooks/
+├── before-reflect.sh
+├── after-save-metrics.py
+└── on-error.go           # 需预编译为二进制
+```
+
+**可用 Hook 节点**：
+
+| Hook Point | 触发时机 | 输入 |
+|------------|---------|------|
+| `before-reflect` | 反思分析开始前 | trigger 信息 |
+| `after-reflect` | 反思分析完成后 | 分析结果 |
+| `before-save-metrics` | 指标保存前 | SessionMetrics JSON |
+| `after-save-metrics` | 指标保存后 | SessionMetrics JSON |
+| `before-sentiment` | 情感分析前 | 待分析消息 |
+| `after-sentiment` | 情感分析后 | SentimentResult JSON |
+| `before-report` | 日报生成前 | 指标汇总 |
+| `after-report` | 日报生成后 | 报告路径 |
+| `after-classify` | 任务状态判定后 | 分类结果 |
+| `on-error` | 发生错误时 | 错误信息 |
+
+Hook 脚本通过 **stdin** 接收 JSON 数据，通过 **stdout** 返回结果。脚本退出码非 0 时记录警告但不阻断主流程。
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+---
+
+## Command Reference
+
+### TUI 命令（在 opencode 对话中输入）
+
+| 命令 | 别名 | 说明 |
+|------|------|------|
+| `/or:reflect_now` | `/or:reflect`, `/or:rf` | 立即执行反思分析，分析所有未处理的会话 |
+| `/or:cleanup` | `/or:clean` | 清理过期数据，默认保留 90 天 |
+
+### HTTP API（Core Engine）
+
+Core Engine 启动后监听 `http://127.0.0.1:{port}`，提供以下端点：
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| `POST` | `/api/v1/reflect` | 执行反思分析 |
+| `GET` | `/api/v1/health` | 健康检查 |
+| `GET` | `/api/v1/stats` | 运行统计 |
+| `POST` | `/api/v1/cleanup` | 清理旧数据 |
+
+#### POST /api/v1/reflect
+
+```json
+{
+  "trigger_type": "MANUAL",
+  "trigger_detail": "TOOL_TRIGGER",
+  "sessions": [...],
+  "config": {
+    "sentiment_enabled": true,
+    "sentiment_source": "agent"
+  }
+}
+```
+
+#### POST /api/v1/cleanup
+
+```json
+{ "days": 90 }
 ```
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
